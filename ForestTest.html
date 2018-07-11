@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>customvision Playground</title>
+</head>
+<body>
+    <p>Upload your image:</p>
+    <input id="ImageURL"/> 
+    <button id="Test" onclick="analyzeButtonClick();"> Test</button>
+
+    <div>
+        <img width="900px" height="500px" id="ImageToTest" src="" />
+    </div>
+
+    <textarea id="responseTextArea" item-width="400px" item-height="400px" class="UIInput"></textarea>
+    <p id="TagAndChance" style="font-size: 30px"> </p>
+</body>
+</html>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"> </script>
+
+<script>
+    var PredicitionKey = "YOUR-KEY-HERE"; 
+    var BiggestScore = {classification:"", probability:"" }
+    
+    function analyzeButtonClick() {
+        var imageURL = document.getElementById("ImageURL").value;
+        $("#ImageToTest").attr("src", imageURL);
+        $("#responseTextArea").val("");
+        var sourceImageUrl = $("#ImageToTest").attr('src');
+
+        AnalyzeImage(sourceImageUrl, $("#responseTextArea"));
+    }
+
+    function AnalyzeImage(sourceImageUrl, responseTextArea ) {
+        // Request parameters.
+        var params = {
+            "visualFeatures": "Categories,Description,Color",
+            "details": "",
+            "language": "en",
+        };
+
+        // Perform the REST API call.
+        $.ajax({
+
+            url:"YOUR-PREDICITION-URL-HERE",
+
+            // Request headers.
+            beforeSend: function (jqXHR) {
+                jqXHR.setRequestHeader("Content-Type", "application/json");
+                jqXHR.setRequestHeader("Prediction-Key",
+                PredicitionKey);
+            },
+
+            type: "POST",
+
+            // Request body.
+            data: '{"url": ' + '"' + sourceImageUrl + '"}',
+        })
+
+            .done(function (data) {
+               responseTextArea.val(JSON.stringify(data, null, 2));
+
+                if (data.description && data.description.captions) {
+                    var caption = data.description.captions[0];
+
+                    if (caption.text && caption.confidence) {
+                        captionSpan.text("Caption: " + caption.text +
+                            " (confidence: " + caption.confidence + ").");
+                    }
+                }
+
+               for(var i = 0; i < data.predictions.length; i++){
+                   if(data.predictions[i].probability > 0.50){
+                       BiggestScore.classification = data.predictions[i].tagName;
+                       BiggestScore.probability = data.predictions[i].probability;
+                   }
+               }
+               
+               var text = document.getElementById('TagAndChance');
+               
+               text.innerHTML +=  "There is a " + BiggestScore.probability + " chance out of 1 , that this is a " + BiggestScore.classification + " forest";   
+            })
+
+            .fail(function (jqXHR, textStatus, errorThrown) {
+                // Prepare the error string.
+                var errorString = (errorThrown === "") ? "Error. " : errorThrown + " (" + jqXHR.status + "): ";
+                errorString += (jqXHR.responseText === "") ? "" : (jQuery.parseJSON(jqXHR.responseText).message) ?
+                    jQuery.parseJSON(jqXHR.responseText).message : jQuery.parseJSON(jqXHR.responseText).error.message;
+
+                // Put the error JSON in the response textarea.
+                responseTextArea.val(JSON.stringify(jqXHR, null, 2));
+
+                // Show the error message.
+                alert(errorString);
+            });
+    }
+
+</script>
